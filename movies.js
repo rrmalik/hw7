@@ -1,11 +1,24 @@
-window.addEventListener('DOMContentLoaded', async function(event) {
+// window.addEventListener('DOMContentLoaded', async function(event) {
+
+firebase.auth().onAuthStateChanged(async function (user) {
   let db = firebase.firestore()
-  let apiKey = 'your TMDB API key'
+
+  let apiKey = '59604964119a084124f610259a9ccc3d'
   let response = await fetch(`https://api.themoviedb.org/3/movie/now_playing?api_key=${apiKey}&language=en-US`)
   let json = await response.json()
   let movies = json.results
   console.log(movies)
+
+  if (user) { 
+
+    console.log('signed-in')
+    console.log(firebase.auth().currentUser)
   
+  db.collection('users').doc(user.uid).set({
+      name: user.displayName,
+      email: user.email
+    })
+
   for (let i=0; i<movies.length; i++) {
     let movie = movies[i]
     let docRef = await db.collection('watched').doc(`${movie.id}`).get()
@@ -26,9 +39,40 @@ window.addEventListener('DOMContentLoaded', async function(event) {
       event.preventDefault()
       let movieElement = document.querySelector(`.movie-${movie.id}`)
       movieElement.classList.add('opacity-20')
-      await db.collection('watched').doc(`${movie.id}`).set({})
+      await db.collection('watched').doc(`${movie.id}-${user.uid}`).set({})
     }) 
   }
+
+  document.querySelector('.sign-in-or-sign-out').innerHTML = `
+    <div>
+      <h1 class="text-left"> Signed in as ${user.displayName} </h1>    
+      <a href="#" class="sign-out-button text-right text-pink-500 underline"> Sign Out</a>
+    </div>
+    `
+  document.querySelector('.sign-out-button').addEventListener('click', function(event) {
+  event.preventDefault()
+  firebase.auth().signOut()
+  document.location.href = 'movies.html' //redirects the page back to itself (reloads)
+})
+} else {
+
+  console.log('signed out')
+  // document.querySelector('form').classList.add('hidden')
+  // Step 1: Un-comment to add FirebaseUI Auth
+  // Initializes FirebaseUI Auth
+  let ui = new firebaseui.auth.AuthUI(firebase.auth())
+
+  // FirebaseUI configuration
+  let authUIConfig = {
+    signInOptions: [
+      firebase.auth.EmailAuthProvider.PROVIDER_ID
+    ],
+    signInSuccessUrl: 'movies.html'
+  }
+
+  // Starts FirebaseUI Auth
+  ui.start('.sign-in-or-sign-out', authUIConfig)
+}
 })
 
 // Goal:   Refactor the movies application from last week, so that it supports
